@@ -13,6 +13,7 @@ const execFileAsync = promisify(execFile);
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtureRoot = resolve(here, "fixtures/order-service");
 const cliPath = resolve(here, "../dist/cli.js");
+const executablePath = resolve(here, "../bin/understand-headless");
 const temporaryDirectories: string[] = [];
 const servers: ReturnType<typeof createServer>[] = [];
 
@@ -29,7 +30,8 @@ describe("understand-headless CLI", () => {
       resolve(here, "../package.json"),
       "utf8",
     )) as { version: string };
-    const result = await runProcess(process.execPath, [cliPath, "--version"], process.env);
+    const result = await runProcess(
+      process.execPath, [executablePath, "--version"], process.env);
 
     expect(result).toMatchObject({ code: 0, stderr: "" });
     expect(result.stdout.trim()).toBe(packageJson.version);
