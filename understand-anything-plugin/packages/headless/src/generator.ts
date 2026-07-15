@@ -1404,7 +1404,7 @@ function assertPromptSize(prompt: string, maximumCharacters: number, phase: stri
 
 function redactSensitiveContent(content: string): string {
   let insidePrivateKey = false;
-  return content.split("\n").map((line) => {
+  return content.replaceAll("\r\n", "\n").replaceAll("\r", "\n").split("\n").map((line) => {
     if (/-----BEGIN [^-]*PRIVATE KEY[^-]*-----/.test(line)) {
       insidePrivateKey = true;
       return "[REDACTED PRIVATE KEY]";

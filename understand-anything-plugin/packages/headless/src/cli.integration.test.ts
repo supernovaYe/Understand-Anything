@@ -180,7 +180,8 @@ describe("understand-headless CLI", () => {
       .resolves.toContain('"knowledgeType": "BUSINESS_RULE"');
   });
 
-  it("terminates an active model request on SIGTERM with exit code 70", async () => {
+  it.skipIf(process.platform === "win32")(
+    "terminates an active model request on SIGTERM with exit code 70", async () => {
     const root = await mkdtemp(resolve(tmpdir(), "understand-headless-cli-cancel-"));
     temporaryDirectories.push(root);
     const source = resolve(root, "source");
@@ -234,7 +235,8 @@ describe("understand-headless CLI", () => {
       status: "FAILED",
       code: "HEADLESS_CANCELLED",
     });
-  });
+    },
+  );
 });
 
 async function waitFor(predicate: () => boolean, timeoutMs: number): Promise<void> {
