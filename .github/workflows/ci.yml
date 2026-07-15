@@ -40,7 +40,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
         run: pnpm lint
@@ -54,11 +54,43 @@ jobs:
       - name: Build viewer
         run: pnpm --filter understand-anything-viewer build
 
+      - name: Build and typecheck headless
+        run: |
+          pnpm --filter @understand-anything/headless build
+          pnpm --filter @understand-anything/headless typecheck
+
       - name: Test core
         run: pnpm --filter @understand-anything/core test
 
-      - name: Test skill
+      - name: Test workspace
         run: pnpm test
 
       - name: Test Python skill helpers
         run: python -m unittest tests.skill.understand.test_merge_batch_graphs tests.skill.understand.test_merge_subdomain_graphs tests.skill.knowledge.test_parse_knowledge_base -v
+
+      - name: Build headless deployment bundle
+        id: headless-bundle
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          deploy_dir="$RUNNER_TEMP/understand-headless"
+          version="$(node understand-anything-plugin/packages/headless/dist/cli.js --version)"
+          pnpm --filter @understand-anything/headless --prod deploy --legacy "$deploy_dir"
+          test -x "$deploy_dir/bin/understand-headless"
+          test "$("$deploy_dir/bin/understand-headless" --version)" = "$version"
+          archive_name="understand-headless-$version.tar.gz"
+          archive="$RUNNER_TEMP/$archive_name"
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 \
+            --numeric-owner -C "$RUNNER_TEMP" -czf "$archive" understand-headless
+          (cd "$RUNNER_TEMP" && sha256sum "$archive_name" > "$archive_name.sha256")
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Upload headless deployment bundle
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: understand-headless-deployment
+          path: |
+            ${{ steps.headless-bundle.outputs.archive }}
+            ${{ steps.headless-bundle.outputs.archive }}.sha256
+          if-no-files-found: error

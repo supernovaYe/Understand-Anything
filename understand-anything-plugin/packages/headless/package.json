@@ -1,0 +1,44 @@
+{
+  "name": "@understand-anything/headless",
+  "version": "0.4.8",
+  "type": "module",
+  "description": "Non-interactive code knowledge generation for Understand Anything",
+  "bin": {
+    "understand-headless": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node scripts/clean-dist.mjs && tsc && node scripts/copy-runtime-scripts.mjs",
+    "prepack": "pnpm build",
+    "pretest": "pnpm build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@understand-anything/core": "workspace:*",
+    "graphology": "~0.26.0",
+    "graphology-communities-louvain": "^2.0.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}
