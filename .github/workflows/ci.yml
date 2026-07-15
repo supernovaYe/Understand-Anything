@@ -70,6 +70,7 @@ jobs:
 
       - name: Build headless deployment bundle
         id: headless-bundle
+        if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           deploy_dir="$RUNNER_TEMP/understand-headless"
@@ -84,6 +85,7 @@ jobs:
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
 
       - name: Upload headless deployment bundle
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: understand-headless-deployment
