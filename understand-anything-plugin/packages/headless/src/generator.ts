@@ -1918,11 +1918,14 @@ async function writeArtifactSetAtomic(
       promoted.push(artifact.target);
     }
     throwIfAborted(signal);
-    const directory = await open(root, "r");
-    try {
-      await directory.sync();
-    } finally {
-      await directory.close();
+    // Windows supports syncing files but rejects fsync on directory handles.
+    if (process.platform !== "win32") {
+      const directory = await open(root, "r");
+      try {
+        await directory.sync();
+      } finally {
+        await directory.close();
+      }
     }
   } catch (error) {
     await Promise.all([
