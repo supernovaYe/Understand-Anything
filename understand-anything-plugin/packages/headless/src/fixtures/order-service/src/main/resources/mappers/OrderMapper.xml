@@ -1,0 +1,5 @@
+<mapper namespace="example.OrderMapper">
+  <select id="findSubmittedOrders" resultType="string">
+    SELECT id FROM orders WHERE status = 'SUBMITTED'
+  </select>
+</mapper>

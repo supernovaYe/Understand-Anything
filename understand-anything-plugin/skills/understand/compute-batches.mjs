@@ -7,6 +7,7 @@
  *
  * Usage:
  *   node compute-batches.mjs <project-root> [--changed-files=<path>]
+ *     [--scan-result=<path>] [--output=<path>]
  *
  * Input/output live under the project's data dir (`.ua/`, or legacy
  * `.understand-anything/` when that directory already exists — resolved by
@@ -262,16 +263,30 @@ function runLouvain(codeFiles, importMap) {
     throw new Error('forced throw via UA_COMPUTE_BATCHES_FORCE_LOUVAIN_THROW');
   }
   const g = new Graph({ type: 'undirected', allowSelfLoops: false });
-  for (const f of codeFiles) g.addNode(f.path);
-  for (const [src, targets] of Object.entries(importMap)) {
+  for (const f of [...codeFiles].sort((a, b) => a.path.localeCompare(b.path))) {
+    g.addNode(f.path);
+  }
+  for (const src of Object.keys(importMap).sort()) {
+    const targets = [...(importMap[src] || [])].sort();
     if (!g.hasNode(src)) continue;
     for (const tgt of targets) {
       if (!g.hasNode(tgt) || src === tgt || g.hasEdge(src, tgt)) continue;
       g.addEdge(src, tgt);
     }
   }
-  const cs = louvain(g);  // { nodeId: communityId }
+  const cs = louvain(g, { rng: createDeterministicRng() });
   return new Map(Object.entries(cs));
+}
+
+function createDeterministicRng() {
+  let state = 0x5eed451;
+  return () => {
+    state = (state + 0x6D2B79F5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 /**
@@ -361,11 +376,16 @@ function mergeSmallBatches(bareBatches) {
 async function main() {
   const projectRoot = process.argv[2];
   if (!projectRoot) {
-    process.stderr.write('Usage: node compute-batches.mjs <project-root> [--changed-files=<path>]\n');
+    process.stderr.write(
+      'Usage: node compute-batches.mjs <project-root> [--changed-files=<path>] ' +
+      '[--scan-result=<path>] [--output=<path>]\n',
+    );
     process.exit(1);
   }
 
   let changedFiles = null;
+  let scanPathOverride = null;
+  let outputPathOverride = null;
   for (const arg of process.argv.slice(3)) {
     const m = arg.match(/^--changed-files=(.+)$/);
     if (m) {
@@ -385,10 +405,15 @@ async function main() {
         .filter(Boolean);
       changedFiles = new Set(lines);
     }
+    const scanPathMatch = arg.match(/^--scan-result=(.+)$/);
+    if (scanPathMatch) scanPathOverride = scanPathMatch[1];
+    const outputPathMatch = arg.match(/^--output=(.+)$/);
+    if (outputPathMatch) outputPathOverride = outputPathMatch[1];
   }
 
   const uaDir = resolveUaDir(projectRoot);
-  const scanPath = join(uaDir, 'intermediate', 'scan-result.json');
+  const scanPath = scanPathOverride
+    || join(uaDir, 'intermediate', 'scan-result.json');
   if (!existsSync(scanPath)) {
     process.stderr.write(`Error: scan-result.json not found at ${scanPath}\n`);
     process.exit(1);
@@ -586,7 +611,8 @@ async function main() {
     batches: finalBatches,
   };
 
-  const outPath = join(uaDir, 'intermediate', 'batches.json');
+  const outPath = outputPathOverride
+    || join(uaDir, 'intermediate', 'batches.json');
   writeFileSync(outPath, JSON.stringify(output, null, 2), 'utf-8');
   const batchSizes = finalBatches.map(b => b.files.length);
   const maxSize = batchSizes.length ? Math.max(...batchSizes) : 0;
